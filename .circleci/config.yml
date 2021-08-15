@@ -1,14 +1,54 @@
-version: 2.1
-orbs:
-  node: circleci/node@1.1
-jobs:
-  build:
-    executor:
-      name: node/default
-      tag: '10.4'
+version: 2
+jobs: # we now have TWO jobs, so that a workflow can coordinate them!
+  one: # This is our first job.
+    version: 2
+jobs: # 今回は 2 つのジョブを用意し、ワークフロー機能でジョブの調整を行います
+  one: # 1 つ目のジョブ
+    docker: # Docker Executor を使用します
+      - image: circleci/ruby:2.4.1 # Ruby 2.4.1 を含む Docker イメージを指定します
+        auth:
+          username: mydockerhub-user
+          password: $DOCKERHUB_PASSWORD  # コンテキスト/プロジェクト UI 環境変数の参照
+    # ステップは、上記の Docker コンテナ内で実行するコマンドのリストです
+    steps:
+      - checkout # GitHub からコードをプルします
+      - run: echo "A first hello" # "A first hello" を stdout に出力します
+      - run: sleep 25 # 25 秒間スリープするようにジョブに指示するコマンド
+  two: # 2 つ目のジョブ
+    docker: # 前述と同様に Docker イメージ内で実行します
+      - image: circleci/ruby:2.4.1
+        auth:
+          username: mydockerhub-user
+          password: $DOCKERHUB_PASSWORD  # コンテキスト/プロジェクト UI 環境変数の参照
     steps:
       - checkout
-      - node/with-cache:
-          steps:
-            - run: npm install
-      - run: npm run test
+      - run: echo "A more familiar hi" # 前述のコマンドに類似した echo コマンドを実行します
+      - run: sleep 15 # 15 秒間スリープします
+# workflows 以下でマッピングを行い、上記で定義した 2 つのジョブを調整します
+workflows:
+  version: 2
+  one_and_two: # ワークフローの名前
+    jobs: # 実行するジョブをここにリストします
+      - one
+      - two
+    steps:
+      - checkout # this pulls code down from GitHub
+      - run: echo "A first hello" # This prints "A first hello" to stdout.
+      - run: sleep 25 # a command telling the job to "sleep" for 25 seconds.
+  two: # This is our second job.
+    docker: # it runs inside a docker image, the same as above.
+      - image: circleci/ruby:2.4.1
+        auth:
+          username: mydockerhub-user
+          password: $DOCKERHUB_PASSWORD  # context / project UI env-var reference
+    steps:
+      - checkout
+      - run: echo "A more familiar hi" # We run a similar echo command to above.
+      - run: sleep 15 # and then sleep for 15 seconds.
+# Under the workflows: map, we can coordinate our two jobs, defined above.
+workflows:
+  version: 2
+  one_and_two: # this is the name of our workflow
+    jobs: # and here we list the jobs we are going to run.
+      - one
+      - two
